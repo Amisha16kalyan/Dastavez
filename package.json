@@ -1,0 +1,17 @@
+{
+  "name": "dastavez",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Real-Time Collaborative Document Editor using CRDT (Yjs & ProseMirror)",
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,green\" \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "npm --prefix client run build",
+    "test:offline": "npm --prefix client run test:offline"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "playwright": "^1.64.0"
+  }
+}

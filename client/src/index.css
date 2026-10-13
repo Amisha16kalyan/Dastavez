@@ -1,0 +1,117 @@
+@import "tailwindcss";
+@import "prosemirror-view/style/prosemirror.css";
+
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Base Light Theme */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f1f5f9;
+  color: #0f172a;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Dark Theme overrides */
+html.dark, body.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #090d16;
+  color: #f8fafc;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Editor Styling */
+.ProseMirror {
+  outline: none !important;
+  border: none !important;
+  min-height: 750px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  color: #1e293b;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.dark .ProseMirror {
+  color: #f1f5f9 !important;
+}
+
+.ProseMirror p {
+  margin: 0 0 12px 0;
+  line-height: 1.65;
+}
+
+.ProseMirror h1 {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 24px 0 12px 0;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.dark .ProseMirror h1 {
+  color: #f8fafc !important;
+}
+
+.ProseMirror h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 18px 0 10px 0;
+  color: #1e293b;
+}
+
+.dark .ProseMirror h2 {
+  color: #f1f5f9 !important;
+}
+
+.ProseMirror h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 14px 0 8px 0;
+  color: #334155;
+}
+
+.dark .ProseMirror h3 {
+  color: #cbd5e1 !important;
+}
+
+.ProseMirror strong {
+  font-weight: 600;
+}
+
+/* Caret Animation */
+.cursor {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.ProseMirror .collaboration-cursor__selection {
+  pointer-events: none;
+  user-select: none;
+}
