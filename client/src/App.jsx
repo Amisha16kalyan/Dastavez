@@ -41,6 +41,7 @@ import VersionDiffModal from "./components/VersionDiffModal.jsx";
 import VersionPreviewBanner from "./components/VersionPreviewBanner.jsx";
 import AiWritingAssistant from "./components/AiWritingAssistant.jsx";
 import ChatPanel from "./components/ChatPanel.jsx";
+import { API_BASE_URL, WS_URL } from "./services/apiConfig.js";
 
 // ProseMirror schema
 const editorSchema = new Schema({
@@ -234,7 +235,7 @@ export default function App() {
   const fetchVersions = async () => {
     setLoadingVersions(true);
     try {
-      const res = await fetch(`http://localhost:1234/api/documents/${currentDocId}/versions`);
+      const res = await fetch(`${API_BASE_URL}/api/documents/${currentDocId}/versions`);
       if (res.ok) {
         const data = await res.json();
         setVersionsList(data);
@@ -308,7 +309,7 @@ export default function App() {
     idbRef.current = idbProvider;
 
     // 2. Real-time Synchronization: WebSocket Provider
-    const wsUrl = "ws://localhost:1234";
+    const wsUrl = WS_URL;
     const provider = new WebsocketProvider(wsUrl, currentDocId, ydoc);
     providerRef.current = provider;
 
@@ -725,7 +726,7 @@ export default function App() {
   // Version History Handlers
   const handleCreateCheckpoint = async (description) => {
     try {
-      const res = await fetch(`http://localhost:1234/api/documents/${currentDocId}/versions`, {
+      const res = await fetch(`${API_BASE_URL}/api/documents/${currentDocId}/versions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -743,13 +744,13 @@ export default function App() {
       }
     } catch (err) {
       console.error("Create checkpoint error:", err);
-      alert("Failed to connect to backend server at http://localhost:1234. Make sure backend is running.");
+      alert(`Failed to connect to backend server at ${API_BASE_URL}. Make sure backend is running.`);
     }
   };
 
   const handleViewVersion = async (versionSummary) => {
     try {
-      const res = await fetch(`http://localhost:1234/api/documents/${currentDocId}/versions/${versionSummary.id}`);
+      const res = await fetch(`${API_BASE_URL}/api/documents/${currentDocId}/versions/${versionSummary.id}`);
       if (res.ok) {
         const fullVersion = await res.json();
         setActivePreviewVersion(fullVersion);
@@ -773,7 +774,7 @@ export default function App() {
     setRestoring(true);
     try {
       const res = await fetch(
-        `http://localhost:1234/api/documents/${currentDocId}/versions/${version.id}/restore`,
+        `${API_BASE_URL}/api/documents/${currentDocId}/versions/${version.id}/restore`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

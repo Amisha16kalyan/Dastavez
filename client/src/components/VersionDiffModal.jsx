@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, GitCompare, ArrowRight, Plus, Minus, Loader2 } from "lucide-react";
+import { API_BASE_URL } from "../services/apiConfig.js";
 
 export default function VersionDiffModal({
   isOpen,
@@ -28,7 +29,7 @@ export default function VersionDiffModal({
       setError(null);
       try {
         const res = await fetch(
-          `http://localhost:1234/api/documents/${documentId}/versions/compare?from=${versionA}&to=${versionB}`
+          `${API_BASE_URL}/api/documents/${documentId}/versions/compare?from=${versionA}&to=${versionB}`
         );
         if (!res.ok) {
           throw new Error("Failed to load difference");

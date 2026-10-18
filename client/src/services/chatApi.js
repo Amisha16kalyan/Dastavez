@@ -2,7 +2,9 @@
  * Client API service for Document Chat (RAG)
  */
 
-const API_BASE_URL = "http://localhost:1234/api/ai";
+import { API_BASE_URL as BACKEND_URL } from "./apiConfig.js";
+
+const API_BASE_URL = `${BACKEND_URL}/api/ai`;
 
 /**
  * Ask a question about the document
