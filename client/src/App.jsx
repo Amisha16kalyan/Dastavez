@@ -822,14 +822,14 @@ export default function App() {
           <form onSubmit={handleStartEditing} className="space-y-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-2">
-                Apna Naam Enter Kijiye:
+                Enter your name:
               </label>
               <input
                 type="text"
                 value={loginNameInput}
                 onChange={(e) => setLoginNameInput(e.target.value)}
-                placeholder="e.g. Aman Sharma (ya blank chhodein)"
-                className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
+                placeholder="e.g. Aman Sharma (or leave blank)"
+                className="w-full px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 caret-blue-600 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-white transition-colors"
                 autoFocus
               />
             </div>
