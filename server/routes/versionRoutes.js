@@ -12,10 +12,10 @@ function sanitizeDocId(id) {
  * GET /api/documents/:documentId/versions
  * List all historical versions
  */
-router.get("/:documentId/versions", (req, res) => {
+router.get("/:documentId/versions", async (req, res) => {
   try {
     const documentId = sanitizeDocId(req.params.documentId);
-    const versions = versionService.listVersions(documentId);
+    const versions = await versionService.listVersions(documentId);
     res.json(versions);
   } catch (err) {
     console.error("Error listing versions:", err);
@@ -27,7 +27,7 @@ router.get("/:documentId/versions", (req, res) => {
  * GET /api/documents/:documentId/versions/compare?from=:v1&to=:v2
  * Compare two versions (Diff View)
  */
-router.get("/:documentId/versions/compare", (req, res) => {
+router.get("/:documentId/versions/compare", async (req, res) => {
   try {
     const documentId = sanitizeDocId(req.params.documentId);
     const { from, to } = req.query;
@@ -36,7 +36,7 @@ router.get("/:documentId/versions/compare", (req, res) => {
       return res.status(400).json({ error: "Query parameters 'from' and 'to' are required" });
     }
 
-    const diffData = versionService.compareVersions(documentId, Number(from), Number(to));
+    const diffData = await versionService.compareVersions(documentId, Number(from), Number(to));
     res.json(diffData);
   } catch (err) {
     console.error("Error comparing versions:", err);
@@ -48,12 +48,12 @@ router.get("/:documentId/versions/compare", (req, res) => {
  * GET /api/documents/:documentId/versions/:versionId
  * Get specific version details & content
  */
-router.get("/:documentId/versions/:versionId", (req, res) => {
+router.get("/:documentId/versions/:versionId", async (req, res) => {
   try {
     const documentId = sanitizeDocId(req.params.documentId);
     const versionId = Number(req.params.versionId);
 
-    const version = versionService.getVersion(documentId, versionId);
+    const version = await versionService.getVersion(documentId, versionId);
     if (!version) {
       return res.status(404).json({ error: "Version not found" });
     }
@@ -69,13 +69,13 @@ router.get("/:documentId/versions/:versionId", (req, res) => {
  * POST /api/documents/:documentId/versions
  * Create a manual checkpoint / version
  */
-router.post("/:documentId/versions", (req, res) => {
+router.post("/:documentId/versions", async (req, res) => {
   try {
     const documentId = sanitizeDocId(req.params.documentId);
     const { description, user = {} } = req.body;
 
     const ydoc = getYDoc(documentId);
-    const newVersion = versionService.createVersion({
+    const newVersion = await versionService.createVersion({
       documentId,
       createdById: user.id || "user",
       createdByName: user.name || "Collaborator",
@@ -94,7 +94,7 @@ router.post("/:documentId/versions", (req, res) => {
  * POST /api/documents/:documentId/versions/:versionId/restore
  * Restore an older version into the active document
  */
-router.post("/:documentId/versions/:versionId/restore", (req, res) => {
+router.post("/:documentId/versions/:versionId/restore", async (req, res) => {
   try {
     const documentId = sanitizeDocId(req.params.documentId);
     const versionId = Number(req.params.versionId);
@@ -102,7 +102,7 @@ router.post("/:documentId/versions/:versionId/restore", (req, res) => {
 
     const activeYDoc = getYDoc(documentId);
 
-    const result = versionService.restoreVersion({
+    const result = await versionService.restoreVersion({
       documentId,
       versionId,
       user,

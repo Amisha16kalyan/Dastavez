@@ -1200,8 +1200,8 @@ export default function App() {
       {/* Main Container with Document Canvas and Chat Panel */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Main Document Canvas */}
-        <main className={`flex-1 transition-all duration-300 overflow-y-auto py-8 px-4 ${chatPanelOpen ? "max-w-4xl" : "max-w-4xl mx-auto"}`}>
-          <div className="bg-white dark:bg-slate-900 shadow-lg dark:shadow-2xl rounded-xl min-h-[750px] border border-slate-200/80 dark:border-slate-800 overflow-hidden transition-colors">
+        <main className="flex-1 min-w-0 overflow-y-auto py-8 px-4">
+          <div className="max-w-4xl mx-auto bg-white dark:bg-slate-900 shadow-lg dark:shadow-2xl rounded-xl min-h-[750px] border border-slate-200/80 dark:border-slate-800 overflow-hidden transition-colors">
             {/* Historical Version Read-Only View */}
             {activePreviewVersion ? (
               <div

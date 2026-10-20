@@ -35,7 +35,7 @@ router.post("/document-chat", async (req, res) => {
     const safeQuestion = question.trim();
 
     // ── Ensure document is indexed ────────────────────────────────────
-    const stats = ragService.getIndexStats(safeDocId);
+    const stats = await ragService.getIndexStats(safeDocId);
 
     if (stats.chunkCount === 0) {
       // Try to index from live Yjs document
@@ -58,7 +58,7 @@ router.post("/document-chat", async (req, res) => {
     const relevantChunks = await ragService.retrieveRelevantChunks(safeDocId, safeQuestion, topK);
 
     // ── Get chat history for context ──────────────────────────────────
-    const history = ragService.getChatHistory(safeDocId, safeConvoId, 12);
+    const history = await ragService.getChatHistory(safeDocId, safeConvoId, 12);
 
     // ── Generate answer via LLM ───────────────────────────────────────
     const answer = await ragService.generateAnswer(safeQuestion, relevantChunks, history);
@@ -73,8 +73,8 @@ router.post("/document-chat", async (req, res) => {
     }));
 
     // ── Persist chat messages ─────────────────────────────────────────
-    ragService.saveChatMessage(safeDocId, safeConvoId, "user", safeQuestion);
-    ragService.saveChatMessage(safeDocId, safeConvoId, "assistant", answer, sources);
+    await ragService.saveChatMessage(safeDocId, safeConvoId, "user", safeQuestion);
+    await ragService.saveChatMessage(safeDocId, safeConvoId, "assistant", answer, sources);
 
     return res.json({
       success: true,
@@ -116,7 +116,7 @@ router.post("/document-index", async (req, res) => {
     }
 
     const result = await ragService.indexDocument(safeDocId, text);
-    const stats = ragService.getIndexStats(safeDocId);
+    const stats = await ragService.getIndexStats(safeDocId);
 
     return res.json({
       success: true,
@@ -133,9 +133,9 @@ router.post("/document-index", async (req, res) => {
  * GET /api/ai/document-index/:documentId
  * Get indexing status for a document
  */
-router.get("/document-index/:documentId", (req, res) => {
+router.get("/document-index/:documentId", async (req, res) => {
   const safeDocId = sanitizeDocId(req.params.documentId);
-  const stats = ragService.getIndexStats(safeDocId);
+  const stats = await ragService.getIndexStats(safeDocId);
   return res.json({ success: true, ...stats });
 });
 
@@ -143,10 +143,10 @@ router.get("/document-index/:documentId", (req, res) => {
  * GET /api/ai/chat-history/:documentId/:conversationId
  * Get chat history
  */
-router.get("/chat-history/:documentId/:conversationId", (req, res) => {
+router.get("/chat-history/:documentId/:conversationId", async (req, res) => {
   const safeDocId = sanitizeDocId(req.params.documentId);
   const safeConvoId = String(req.params.conversationId).slice(0, 128);
-  const messages = ragService.getChatHistory(safeDocId, safeConvoId, 50);
+  const messages = await ragService.getChatHistory(safeDocId, safeConvoId, 50);
   return res.json({ success: true, messages });
 });
 
@@ -154,10 +154,10 @@ router.get("/chat-history/:documentId/:conversationId", (req, res) => {
  * DELETE /api/ai/chat-history/:documentId/:conversationId
  * Clear chat history
  */
-router.delete("/chat-history/:documentId/:conversationId", (req, res) => {
+router.delete("/chat-history/:documentId/:conversationId", async (req, res) => {
   const safeDocId = sanitizeDocId(req.params.documentId);
   const safeConvoId = String(req.params.conversationId).slice(0, 128);
-  ragService.clearChatHistory(safeDocId, safeConvoId);
+  await ragService.clearChatHistory(safeDocId, safeConvoId);
   return res.json({ success: true });
 });
 

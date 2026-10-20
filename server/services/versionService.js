@@ -18,14 +18,11 @@ function extractDocText(ydoc) {
 /**
  * Ensure document entry exists in documents table
  */
-function ensureDocument(documentId, title = "Untitled Document") {
-  const existing = db.prepare("SELECT id FROM documents WHERE id = ?").get(documentId);
-  if (!existing) {
-    db.prepare(`
-      INSERT INTO documents (id, title, created_at, updated_at)
-      VALUES (?, ?, datetime('now'), datetime('now'))
-    `).run(documentId, title);
-  }
+async function ensureDocument(documentId, title = "Untitled Document", client = db) {
+  await client.query(
+    "INSERT INTO documents (id, title) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING",
+    [documentId, title || "Untitled Document"]
+  );
 }
 
 /**
@@ -113,7 +110,7 @@ function computeWordDiff(textA, textB) {
 /**
  * Create a new document version checkpoint
  */
-function createVersion({
+async function createVersion({
   documentId,
   createdById = "system",
   createdByName = "Collaborator",
@@ -122,61 +119,67 @@ function createVersion({
   restoredFromVersion = null,
   title,
 }) {
-  ensureDocument(documentId, title);
-
-  // Get current highest version number for this document
-  const lastVer = db
-    .prepare("SELECT version_number, content_text FROM document_versions WHERE document_id = ? ORDER BY version_number DESC LIMIT 1")
-    .get(documentId);
-
-  const nextVersionNum = (lastVer?.version_number || 0) + 1;
   const contentText = extractDocText(ydoc);
   const binarySnapshot = Buffer.from(Y.encodeStateAsUpdate(ydoc));
 
-  let summary = description?.trim();
-  if (!summary) {
-    if (restoredFromVersion) {
-      summary = `Restored from Version ${restoredFromVersion}`;
-    } else {
-      summary = generateDeterministicSummary(lastVer?.content_text || "", contentText);
+  const { row, nextVersionNum, summary } = await db.withTransaction(async (client) => {
+    await ensureDocument(documentId, title, client);
+
+    // Serialize version numbering per document across concurrent requests
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [documentId]);
+
+    const { rows: lastRows } = await client.query(
+      "SELECT version_number, content_text FROM document_versions WHERE document_id = $1 ORDER BY version_number DESC LIMIT 1",
+      [documentId]
+    );
+    const lastVer = lastRows[0];
+    const nextVersionNum = (lastVer?.version_number || 0) + 1;
+
+    let summary = description?.trim();
+    if (!summary) {
+      if (restoredFromVersion) {
+        summary = `Restored from Version ${restoredFromVersion}`;
+      } else {
+        summary = generateDeterministicSummary(lastVer?.content_text || "", contentText);
+      }
     }
-  }
 
-  const insert = db.prepare(`
-    INSERT INTO document_versions (
-      document_id,
-      version_number,
-      created_by_id,
-      created_by_name,
-      created_at,
-      change_summary,
-      content_text,
-      crdt_snapshot,
-      restored_from_version
-    ) VALUES (?, ?, ?, ?, datetime('now'), ?, ?, ?, ?)
-  `);
+    const { rows } = await client.query(
+      `INSERT INTO document_versions (
+        document_id,
+        version_number,
+        created_by_id,
+        created_by_name,
+        change_summary,
+        content_text,
+        crdt_snapshot,
+        restored_from_version
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id, created_at`,
+      [
+        documentId,
+        nextVersionNum,
+        createdById,
+        createdByName,
+        summary,
+        contentText,
+        binarySnapshot,
+        restoredFromVersion,
+      ]
+    );
 
-  const result = insert.run(
-    documentId,
-    nextVersionNum,
-    createdById,
-    createdByName,
-    summary,
-    contentText,
-    binarySnapshot,
-    restoredFromVersion
-  );
+    await client.query("UPDATE documents SET updated_at = NOW() WHERE id = $1", [documentId]);
 
-  // Update document modified time
-  db.prepare("UPDATE documents SET updated_at = datetime('now') WHERE id = ?").run(documentId);
+    return { row: rows[0], nextVersionNum, summary };
+  });
 
   return {
-    id: result.lastInsertRowid,
+    id: row.id,
     documentId,
     versionNumber: nextVersionNum,
     createdById,
     createdByName,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(row.created_at).toISOString(),
     changeSummary: summary,
     restoredFromVersion,
     wordCount: contentText.split(/\s+/).filter(Boolean).length,
@@ -186,24 +189,25 @@ function createVersion({
 /**
  * List all historical versions for a document
  */
-function listVersions(documentId) {
-  ensureDocument(documentId);
+async function listVersions(documentId) {
+  await ensureDocument(documentId);
 
-  const rows = db.prepare(`
-    SELECT
+  const { rows } = await db.query(
+    `SELECT
       id,
-      document_id AS documentId,
-      version_number AS versionNumber,
-      created_by_id AS createdById,
-      created_by_name AS createdByName,
-      created_at AS createdAt,
-      change_summary AS changeSummary,
-      restored_from_version AS restoredFromVersion,
-      length(content_text) AS textLength
+      document_id AS "documentId",
+      version_number AS "versionNumber",
+      created_by_id AS "createdById",
+      created_by_name AS "createdByName",
+      created_at AS "createdAt",
+      change_summary AS "changeSummary",
+      restored_from_version AS "restoredFromVersion",
+      length(content_text) AS "textLength"
     FROM document_versions
-    WHERE document_id = ?
-    ORDER BY version_number DESC
-  `).all(documentId);
+    WHERE document_id = $1
+    ORDER BY version_number DESC`,
+    [documentId]
+  );
 
   return rows;
 }
@@ -211,22 +215,26 @@ function listVersions(documentId) {
 /**
  * Get a specific version by ID
  */
-function getVersion(documentId, versionId) {
-  const row = db.prepare(`
-    SELECT
+async function getVersion(documentId, versionId) {
+  if (!Number.isInteger(versionId)) return null;
+
+  const { rows } = await db.query(
+    `SELECT
       id,
-      document_id AS documentId,
-      version_number AS versionNumber,
-      created_by_id AS createdById,
-      created_by_name AS createdByName,
-      created_at AS createdAt,
-      change_summary AS changeSummary,
-      content_text AS contentText,
-      crdt_snapshot AS crdtSnapshot,
-      restored_from_version AS restoredFromVersion
+      document_id AS "documentId",
+      version_number AS "versionNumber",
+      created_by_id AS "createdById",
+      created_by_name AS "createdByName",
+      created_at AS "createdAt",
+      change_summary AS "changeSummary",
+      content_text AS "contentText",
+      crdt_snapshot AS "crdtSnapshot",
+      restored_from_version AS "restoredFromVersion"
     FROM document_versions
-    WHERE document_id = ? AND id = ?
-  `).get(documentId, versionId);
+    WHERE document_id = $1 AND id = $2`,
+    [documentId, versionId]
+  );
+  const row = rows[0];
 
   if (!row) return null;
 
@@ -239,9 +247,11 @@ function getVersion(documentId, versionId) {
 /**
  * Compare two versions and return diff
  */
-function compareVersions(documentId, versionIdA, versionIdB) {
-  const vA = getVersion(documentId, versionIdA);
-  const vB = getVersion(documentId, versionIdB);
+async function compareVersions(documentId, versionIdA, versionIdB) {
+  const [vA, vB] = await Promise.all([
+    getVersion(documentId, versionIdA),
+    getVersion(documentId, versionIdB),
+  ]);
 
   if (!vA || !vB) {
     throw new Error("One or both versions not found");
@@ -306,13 +316,13 @@ function cloneXmlNodes(sourceFragment, targetFragment) {
 /**
  * Restore an older version into the active CRDT document
  */
-function restoreVersion({
+async function restoreVersion({
   documentId,
   versionId,
   user = { name: "User", id: "user" },
   activeYDoc,
 }) {
-  const targetVer = getVersion(documentId, versionId);
+  const targetVer = await getVersion(documentId, versionId);
   if (!targetVer) {
     throw new Error("Target version not found");
   }
@@ -346,7 +356,7 @@ function restoreVersion({
   tempDoc.destroy();
 
   // Create a brand NEW version record marking the restoration (History is NEVER deleted!)
-  const newVersion = createVersion({
+  const newVersion = await createVersion({
     documentId,
     createdById: user.id || "user",
     createdByName: user.name || "Collaborator",

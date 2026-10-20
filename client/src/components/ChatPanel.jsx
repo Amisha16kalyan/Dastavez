@@ -15,6 +15,15 @@ const SUGGESTED_QUESTIONS = [
   "What potential problems are highlighted?",
 ];
 
+const MIN_PANEL_WIDTH = 320;
+const DEFAULT_PANEL_WIDTH = 420;
+const PANEL_WIDTH_KEY = "dastavez-chat-panel-width";
+
+function clampWidth(width) {
+  const max = Math.max(MIN_PANEL_WIDTH, Math.floor(window.innerWidth * 0.6));
+  return Math.min(Math.max(width, MIN_PANEL_WIDTH), max);
+}
+
 export default function ChatPanel({
   documentId,
   isOpen,
@@ -27,6 +36,11 @@ export default function ChatPanel({
   const [error, setError] = useState(null);
   const [indexing, setIndexing] = useState(false);
   const [indexStats, setIndexStats] = useState({ chunkCount: 0, lastIndexed: null });
+  const [panelWidth, setPanelWidth] = useState(() => {
+    const saved = Number(localStorage.getItem(PANEL_WIDTH_KEY));
+    return clampWidth(saved || DEFAULT_PANEL_WIDTH);
+  });
+  const [resizing, setResizing] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -81,6 +95,37 @@ export default function ChatPanel({
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [isOpen]);
+
+  // Drag-to-resize the split divider
+  useEffect(() => {
+    if (!resizing) return;
+
+    const onMove = (e) => {
+      setPanelWidth(clampWidth(window.innerWidth - e.clientX));
+    };
+    const onUp = () => setResizing(false);
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [resizing]);
+
+  useEffect(() => {
+    if (!resizing) localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth));
+  }, [resizing, panelWidth]);
+
+  useEffect(() => {
+    const onResize = () => setPanelWidth((w) => clampWidth(w));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   // Handle re-index trigger
   const handleReindex = async () => {
@@ -175,7 +220,22 @@ export default function ChatPanel({
   if (!isOpen) return null;
 
   return (
-    <aside className="chat-panel flex flex-col h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl transition-all duration-300 z-30 w-80 lg:w-96 flex-shrink-0 text-slate-800 dark:text-slate-100 font-sans">
+    <aside
+      style={{ width: panelWidth }}
+      className="chat-panel relative flex flex-col h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 z-30 flex-shrink-0 text-slate-800 dark:text-slate-100 font-sans max-md:fixed max-md:inset-0 max-md:w-full!"
+    >
+      {/* Split divider (drag to resize) */}
+      <div
+        onPointerDown={(e) => {
+          e.preventDefault();
+          setResizing(true);
+        }}
+        onDoubleClick={() => setPanelWidth(clampWidth(DEFAULT_PANEL_WIDTH))}
+        title="Drag to resize • Double-click to reset"
+        className={`absolute left-0 top-0 h-full w-1.5 -translate-x-1/2 cursor-col-resize z-40 transition-colors max-md:hidden ${
+          resizing ? "bg-indigo-500" : "hover:bg-indigo-400/70"
+        }`}
+      />
       {/* ── Panel Header ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800/80 select-none">
         <div className="flex items-center gap-2">

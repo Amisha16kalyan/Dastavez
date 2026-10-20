@@ -14,39 +14,6 @@
 const db = require("../db/database");
 
 // ──────────────────────────────────────────────────────────────────────────────
-// DATABASE SCHEMA — extends existing SQLite database
-// ──────────────────────────────────────────────────────────────────────────────
-db.exec(`
-  CREATE TABLE IF NOT EXISTS document_chunks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    document_id TEXT NOT NULL,
-    chunk_index INTEGER NOT NULL,
-    section_title TEXT DEFAULT '',
-    content TEXT NOT NULL,
-    content_hash TEXT NOT NULL,
-    word_count INTEGER DEFAULT 0,
-    embedding TEXT,
-    indexed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON document_chunks(document_id);
-  CREATE INDEX IF NOT EXISTS idx_chunks_hash ON document_chunks(document_id, content_hash);
-
-  CREATE TABLE IF NOT EXISTS chat_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    document_id TEXT NOT NULL,
-    conversation_id TEXT NOT NULL,
-    role TEXT NOT NULL,
-    content TEXT NOT NULL,
-    sources TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_chat_doc ON chat_messages(document_id, conversation_id);
-`);
-
-// ──────────────────────────────────────────────────────────────────────────────
 // CHUNKING
 // ──────────────────────────────────────────────────────────────────────────────
 const MAX_CHUNK_WORDS = 300;
@@ -259,17 +226,17 @@ async function indexDocument(documentId, fullText) {
   const chunks = chunkDocumentText(fullText);
   if (chunks.length === 0) return { indexed: 0 };
 
-  // Ensure document row exists in SQLite
-  try {
-    db.prepare("INSERT OR IGNORE INTO documents (id, title) VALUES (?, ?)").run(documentId, documentId);
-  } catch (e) {
-    // Table might not exist or other non-fatal error
-  }
+  // Ensure document row exists (chunks reference documents via FK)
+  await db.query(
+    "INSERT INTO documents (id, title) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING",
+    [documentId, documentId]
+  );
 
   // Load existing chunk hashes for this document
-  const existing = db
-    .prepare("SELECT chunk_index, content_hash FROM document_chunks WHERE document_id = ?")
-    .all(documentId);
+  const { rows: existing } = await db.query(
+    "SELECT chunk_index, content_hash FROM document_chunks WHERE document_id = $1",
+    [documentId]
+  );
 
   const existingMap = new Map(existing.map((r) => [r.chunk_index, r.content_hash]));
 
@@ -278,8 +245,10 @@ async function indexDocument(documentId, fullText) {
 
   // Delete chunks beyond current count (document got shorter)
   if (existing.length > chunks.length) {
-    db.prepare("DELETE FROM document_chunks WHERE document_id = ? AND chunk_index >= ?")
-      .run(documentId, chunks.length);
+    await db.query(
+      "DELETE FROM document_chunks WHERE document_id = $1 AND chunk_index >= $2",
+      [documentId, chunks.length]
+    );
   }
 
   for (let i = 0; i < chunks.length; i++) {
@@ -296,13 +265,17 @@ async function indexDocument(documentId, fullText) {
     const embeddingJson = JSON.stringify(embedding);
 
     // Upsert: delete old + insert new
-    db.prepare("DELETE FROM document_chunks WHERE document_id = ? AND chunk_index = ?")
-      .run(documentId, i);
-
-    db.prepare(`
-      INSERT INTO document_chunks (document_id, chunk_index, section_title, content, content_hash, word_count, embedding, indexed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    `).run(documentId, i, chunk.sectionTitle, chunk.content, hash, chunk.wordCount, embeddingJson);
+    await db.withTransaction(async (client) => {
+      await client.query(
+        "DELETE FROM document_chunks WHERE document_id = $1 AND chunk_index = $2",
+        [documentId, i]
+      );
+      await client.query(
+        `INSERT INTO document_chunks (document_id, chunk_index, section_title, content, content_hash, word_count, embedding, indexed_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+        [documentId, i, chunk.sectionTitle, chunk.content, hash, chunk.wordCount, embeddingJson]
+      );
+    });
 
     indexed++;
   }
@@ -316,9 +289,10 @@ async function indexDocument(documentId, fullText) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 async function retrieveRelevantChunks(documentId, question, topK = 5) {
-  const chunks = db
-    .prepare("SELECT id, chunk_index, section_title, content, word_count, embedding FROM document_chunks WHERE document_id = ? ORDER BY chunk_index")
-    .all(documentId);
+  const { rows: chunks } = await db.query(
+    "SELECT id, chunk_index, section_title, content, word_count, embedding FROM document_chunks WHERE document_id = $1 ORDER BY chunk_index",
+    [documentId]
+  );
 
   if (chunks.length === 0) return [];
 
@@ -516,23 +490,24 @@ function generateLocalAnswer(question, relevantChunks) {
 // CHAT HISTORY
 // ──────────────────────────────────────────────────────────────────────────────
 
-function saveChatMessage(documentId, conversationId, role, content, sources = null) {
-  db.prepare(`
-    INSERT INTO chat_messages (document_id, conversation_id, role, content, sources, created_at)
-    VALUES (?, ?, ?, ?, ?, datetime('now'))
-  `).run(documentId, conversationId, role, content, sources ? JSON.stringify(sources) : null);
+async function saveChatMessage(documentId, conversationId, role, content, sources = null) {
+  await db.query(
+    `INSERT INTO chat_messages (document_id, conversation_id, role, content, sources)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [documentId, conversationId, role, content, sources ? JSON.stringify(sources) : null]
+  );
 }
 
-function getChatHistory(documentId, conversationId, limit = 20) {
-  return db
-    .prepare(`
-      SELECT role, content, sources, created_at AS createdAt
-      FROM chat_messages
-      WHERE document_id = ? AND conversation_id = ?
-      ORDER BY created_at DESC
-      LIMIT ?
-    `)
-    .all(documentId, conversationId, limit)
+async function getChatHistory(documentId, conversationId, limit = 20) {
+  const { rows } = await db.query(
+    `SELECT role, content, sources, created_at AS "createdAt"
+     FROM chat_messages
+     WHERE document_id = $1 AND conversation_id = $2
+     ORDER BY created_at DESC, id DESC
+     LIMIT $3`,
+    [documentId, conversationId, limit]
+  );
+  return rows
     .reverse()
     .map((row) => ({
       ...row,
@@ -540,9 +515,11 @@ function getChatHistory(documentId, conversationId, limit = 20) {
     }));
 }
 
-function clearChatHistory(documentId, conversationId) {
-  db.prepare("DELETE FROM chat_messages WHERE document_id = ? AND conversation_id = ?")
-    .run(documentId, conversationId);
+async function clearChatHistory(documentId, conversationId) {
+  await db.query(
+    "DELETE FROM chat_messages WHERE document_id = $1 AND conversation_id = $2",
+    [documentId, conversationId]
+  );
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -568,12 +545,14 @@ function scheduleReindex(documentId, getTextFn, debounceMs = 30000) {
   indexTimers.set(documentId, timer);
 }
 
-function getIndexStats(documentId) {
-  const count = db.prepare("SELECT COUNT(*) as cnt FROM document_chunks WHERE document_id = ?").get(documentId);
-  const latest = db.prepare("SELECT MAX(indexed_at) as latest FROM document_chunks WHERE document_id = ?").get(documentId);
+async function getIndexStats(documentId) {
+  const { rows } = await db.query(
+    "SELECT COUNT(*)::int AS cnt, MAX(indexed_at) AS latest FROM document_chunks WHERE document_id = $1",
+    [documentId]
+  );
   return {
-    chunkCount: count?.cnt || 0,
-    lastIndexed: latest?.latest || null,
+    chunkCount: rows[0]?.cnt || 0,
+    lastIndexed: rows[0]?.latest || null,
   };
 }
 

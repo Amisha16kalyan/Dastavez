@@ -11,6 +11,7 @@ const versionService = require("./services/versionService");
 const aiRoutes = require("./routes/aiRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const ragService = require("./services/ragService");
+const db = require("./db/database");
 
 const documentMetadata = new Map();
 
@@ -198,8 +199,10 @@ const shutdown = (signal) => {
   });
 
   server.close(() => {
-    console.log("✅ Server closed gracefully");
-    process.exit(0);
+    db.pool.end().finally(() => {
+      console.log("✅ Server closed gracefully");
+      process.exit(0);
+    });
   });
 };
 
@@ -217,10 +220,18 @@ process.on("uncaughtException", (error) => {
 
 const PORT = process.env.PORT || 1234;
 
-server.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
-  console.log(`🔌 WebSocket server running at ws://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-});
+db.ready
+  .then(() => {
+    console.log("🗄️  Connected to Postgres");
+    server.listen(PORT, () => {
+      console.log(`✅ Server running at http://localhost:${PORT}`);
+      console.log(`🔌 WebSocket server running at ws://localhost:${PORT}`);
+      console.log(`📊 Health check: http://localhost:${PORT}/health`);
+    });
+  })
+  .catch((err) => {
+    console.error("❌ Failed to initialize Postgres:", err.message);
+    process.exit(1);
+  });
 
 module.exports = server;
