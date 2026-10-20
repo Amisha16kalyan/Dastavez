@@ -870,9 +870,9 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen transition-colors duration-200 ${theme === "dark" ? "dark bg-slate-950 text-slate-100" : "bg-slate-100/70 text-slate-900"}`}>
+    <div className={`h-screen flex flex-col overflow-hidden transition-colors duration-200 ${theme === "dark" ? "dark bg-slate-950 text-slate-100" : "bg-slate-100/70 text-slate-900"}`}>
       {/* Top Header / App Bar */}
-      <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 shadow-xs transition-colors">
+      <header className="shrink-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-20 shadow-xs transition-colors">
         {/* Row 1: Brand Logo, Doc Title, Live Status & User Profile */}
         <div className="max-w-7xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/60">
           <div className="flex items-center space-x-3">
@@ -1198,7 +1198,7 @@ export default function App() {
       )}
 
       {/* Main Container with Document Canvas and Chat Panel */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
         {/* Main Document Canvas */}
         <main className="flex-1 min-w-0 overflow-y-auto py-8 px-4">
           <div className="max-w-4xl mx-auto bg-white dark:bg-slate-900 shadow-lg dark:shadow-2xl rounded-xl min-h-[750px] border border-slate-200/80 dark:border-slate-800 overflow-hidden transition-colors">

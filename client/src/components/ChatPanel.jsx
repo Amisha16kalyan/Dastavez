@@ -222,7 +222,7 @@ export default function ChatPanel({
   return (
     <aside
       style={{ width: panelWidth }}
-      className="chat-panel relative flex flex-col h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 z-30 flex-shrink-0 text-slate-800 dark:text-slate-100 font-sans max-md:fixed max-md:inset-0 max-md:w-full!"
+      className="chat-panel relative flex flex-col self-stretch min-h-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 z-30 flex-shrink-0 text-slate-800 dark:text-slate-100 font-sans max-md:fixed max-md:inset-0 max-md:w-full!"
     >
       {/* Split divider (drag to resize) */}
       <div
@@ -237,7 +237,7 @@ export default function ChatPanel({
         }`}
       />
       {/* ── Panel Header ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800/80 select-none">
+      <div className="shrink-0 flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800/80 select-none">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white shadow-md">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -358,7 +358,7 @@ export default function ChatPanel({
                         key={sIdx}
                         onClick={() => handleSourceClick(src)}
                         title="Click to locate in document"
-                        className="w-full text-left bg-white dark:bg-slate-850 hover:bg-indigo-50/80 dark:hover:bg-indigo-900/40 p-2 rounded-lg border border-slate-200 dark:border-slate-700/50 hover:border-indigo-400 dark:hover:border-indigo-500/40 transition-colors text-[11px] block shadow-2xs cursor-pointer"
+                        className="w-full text-left bg-white dark:bg-slate-900 hover:bg-indigo-50/80 dark:hover:bg-indigo-900/40 p-2 rounded-lg border border-slate-200 dark:border-slate-700/50 hover:border-indigo-400 dark:hover:border-indigo-500/40 transition-colors text-[11px] block shadow-2xs cursor-pointer"
                       >
                         <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center justify-between">
                           <span className="truncate">📄 {src.section || `Chunk ${src.chunkIndex + 1}`}</span>
@@ -422,7 +422,7 @@ export default function ChatPanel({
       </div>
 
       {/* ── Input Form ────────────────────────────────────────────────── */}
-      <form onSubmit={handleSubmit} className="p-3 bg-slate-50 dark:bg-slate-850 border-t border-slate-200 dark:border-slate-800/80">
+      <form onSubmit={handleSubmit} className="shrink-0 p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800/80">
         <div className="relative flex items-center">
           <input
             ref={inputRef}
