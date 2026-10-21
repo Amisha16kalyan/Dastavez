@@ -1,5 +1,6 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
+const { requestLogger } = require("./utils/logger");
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
@@ -34,6 +35,7 @@ app.use(
   })
 );
 
+app.use(requestLogger);
 app.use(express.json({ limit: "1mb" }));
 
 // Version History APIs

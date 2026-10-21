@@ -27,49 +27,49 @@ const OPERATIONS = [
     label: "Improve Writing",
     desc: "Enhance clarity, vocabulary & flow",
     icon: Sparkles,
-    color: "text-amber-600 bg-amber-50",
+    color: "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10",
   },
   {
     id: "grammar",
     label: "Fix Grammar",
     desc: "Correct spelling, syntax & punctuation",
     icon: SpellCheck,
-    color: "text-emerald-600 bg-emerald-50",
+    color: "text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10",
   },
   {
     id: "professional",
     label: "Make Professional",
     desc: "Format for business & formal docs",
     icon: Briefcase,
-    color: "text-blue-600 bg-blue-50",
+    color: "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10",
   },
   {
     id: "concise",
     label: "Make Concise",
     desc: "Shorten and cut out unnecessary fluff",
     icon: Scissors,
-    color: "text-violet-600 bg-violet-50",
+    color: "text-violet-600 bg-violet-50 dark:text-violet-400 dark:bg-violet-500/10",
   },
   {
     id: "expand",
     label: "Expand",
     desc: "Add depth, context & nuance",
     icon: Maximize2,
-    color: "text-indigo-600 bg-indigo-50",
+    color: "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-500/10",
   },
   {
     id: "summarize",
     label: "Summarize",
     desc: "Distill into core key takeaways",
     icon: FileText,
-    color: "text-teal-600 bg-teal-50",
+    color: "text-teal-600 bg-teal-50 dark:text-teal-400 dark:bg-teal-500/10",
   },
   {
     id: "rewrite",
     label: "Rewrite",
     desc: "Rephrase with alternative phrasing",
     icon: RefreshCw,
-    color: "text-rose-600 bg-rose-50",
+    color: "text-rose-600 bg-rose-50 dark:text-rose-400 dark:bg-rose-500/10",
   },
 ];
 
@@ -93,7 +93,6 @@ export default function AiWritingAssistant({
   const [activeView, setActiveView] = useState("menu"); // 'menu' | 'result'
   const [currentOp, setCurrentOp] = useState("improve");
   const [currentTone, setCurrentTone] = useState("professional");
-  const [showToneSelector, setShowToneSelector] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [suggestion, setSuggestion] = useState("");
@@ -114,7 +113,6 @@ export default function AiWritingAssistant({
       setSuggestion("");
       setError(null);
       setLoading(false);
-      setShowToneSelector(false);
     }
   }, [isOpen]);
 
@@ -198,9 +196,10 @@ export default function AiWritingAssistant({
   let style = {};
   if (position) {
     const menuWidth = activeView === "result" ? 440 : 320;
+    const desiredHeight = activeView === "result" ? 480 : 420;
     const padding = 16;
+    const gap = 8;
     let left = position.left;
-    let top = position.bottom + 8;
 
     // Boundary clamping
     if (left + menuWidth > window.innerWidth - padding) {
@@ -210,23 +209,28 @@ export default function AiWritingAssistant({
       left = padding;
     }
 
-    // Flip to top if close to bottom of screen
-    if (top + 380 > window.innerHeight) {
-      top = Math.max(padding, position.top - 400);
-    }
+    // Open on whichever side of the selection has more room, capped to the viewport
+    const spaceBelow = window.innerHeight - position.bottom - gap - padding;
+    const spaceAbove = position.top - gap - padding;
 
-    style = {
-      position: "fixed",
-      top: `${top}px`,
-      left: `${left}px`,
-      zIndex: 50,
-    };
+    style = { position: "fixed", left: `${left}px`, zIndex: 50 };
+    if (spaceBelow >= desiredHeight || (spaceBelow >= spaceAbove && spaceBelow >= 240)) {
+      style.top = `${position.bottom + gap}px`;
+      style.maxHeight = `${spaceBelow}px`;
+    } else if (spaceAbove >= 240) {
+      style.bottom = `${window.innerHeight - position.top + gap}px`;
+      style.maxHeight = `${spaceAbove}px`;
+    } else {
+      style.top = `${padding}px`;
+      style.maxHeight = `${window.innerHeight - padding * 2}px`;
+    }
   } else {
     // Default fallback center/floating position
     style = {
       position: "fixed",
       top: "120px",
       right: "32px",
+      maxHeight: "calc(100vh - 136px)",
       zIndex: 50,
     };
   }
@@ -241,31 +245,29 @@ export default function AiWritingAssistant({
     <div
       ref={popoverRef}
       style={style}
-      className={`bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md transition-all ${
-        activeView === "result" ? "w-[440px] max-w-[95vw]" : "w-[320px]"
+      className={`flex flex-col bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-xl shadow-2xl shadow-black/20 dark:shadow-black/50 border border-slate-200 dark:border-slate-700/80 overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${
+        activeView === "result" ? "w-[440px] max-w-[95vw]" : "w-[320px] max-w-[95vw]"
       }`}
     >
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-indigo-900/40">
-        <div className="flex items-center space-x-2">
-          <div className="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-400/30">
+      <div className="shrink-0 px-3 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center shadow-sm">
             <Sparkles className="w-3.5 h-3.5" />
           </div>
-          <div>
-            <h3 className="text-xs font-semibold tracking-wide text-slate-100 flex items-center gap-1.5">
-              <span>AI Writing Assistant</span>
-              {isDemoMode && activeView === "result" && (
-                <span className="text-[9px] font-normal uppercase tracking-wider bg-indigo-500/30 text-indigo-200 px-1.5 py-0.2 rounded border border-indigo-400/30">
-                  Demo
-                </span>
-              )}
-            </h3>
-          </div>
+          <h3 className="text-xs font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+            <span>AI Assist</span>
+            {isDemoMode && activeView === "result" && (
+              <span className="text-[9px] font-semibold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/30">
+                Demo
+              </span>
+            )}
+          </h3>
         </div>
 
         <button
           onClick={handleCancel}
-          className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+          className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
           title="Close (Esc)"
         >
           <X className="w-3.5 h-3.5" />
@@ -274,9 +276,9 @@ export default function AiWritingAssistant({
 
       {/* VIEW 1: OPERATIONS MENU */}
       {activeView === "menu" && (
-        <div className="p-2 space-y-1 max-h-[420px] overflow-y-auto">
-          <div className="px-2 py-1 text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-            Choose transformation
+        <div className="flex-1 min-h-0 p-2 space-y-1 overflow-y-auto">
+          <div className="px-2 pt-1 pb-1.5 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+            Edit selection
           </div>
 
           {OPERATIONS.map((op) => {
@@ -285,81 +287,56 @@ export default function AiWritingAssistant({
               <button
                 key={op.id}
                 onClick={() => executeAiOperation(op.id)}
-                className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-50 transition-colors flex items-center space-x-3 group cursor-pointer"
+                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-2.5 group cursor-pointer"
               >
                 <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${op.color}`}
+                  className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${op.color}`}
                 >
                   <Icon className="w-3.5 h-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors">
+                  <div className="text-xs font-medium text-slate-800 dark:text-slate-100">
                     {op.label}
                   </div>
-                  <div className="text-[11px] text-slate-400 truncate">{op.desc}</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{op.desc}</div>
                 </div>
-                <ArrowRight className="w-3 h-3 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+                <ArrowRight className="w-3 h-3 text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 group-hover:text-indigo-500 transition-all shrink-0" />
               </button>
             );
           })}
 
           {/* Tone Adjustment Sub-menu */}
-          <div className="pt-1 mt-1 border-t border-slate-100">
-            <button
-              onClick={() => setShowToneSelector(!showToneSelector)}
-              className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-between group cursor-pointer"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                  <Sliders className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-slate-800 group-hover:text-purple-600 transition-colors">
-                    Change Tone
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    Currently: <span className="capitalize font-medium text-slate-600">{currentTone}</span>
-                  </div>
-                </div>
-              </div>
-              <span className="text-[10px] text-slate-400 font-semibold px-2 py-0.5 bg-slate-100 rounded-md">
-                {showToneSelector ? "Hide" : "Select"}
-              </span>
-            </button>
-
-            {showToneSelector && (
-              <div className="grid grid-cols-2 gap-1.5 p-2 bg-slate-50/80 rounded-xl mt-1 border border-slate-100">
-                {TONES.map((t) => {
-                  const ToneIcon = t.icon;
-                  const isSelected = currentTone === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => executeAiOperation("tone", t.id)}
-                      className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer ${
-                        isSelected
-                          ? "bg-purple-600 text-white shadow-xs"
-                          : "bg-white text-slate-700 hover:bg-purple-50 hover:text-purple-700 border border-slate-200/60"
-                      }`}
-                    >
-                      <ToneIcon className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{t.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+          <div className="pt-2 mt-1 border-t border-slate-200 dark:border-slate-800">
+            <div className="px-2 pb-1.5 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1">
+              <Sliders className="w-3 h-3" />
+              Change tone
+            </div>
+            <div className="flex flex-wrap gap-1.5 px-2 pb-1">
+              {TONES.map((t) => {
+                const ToneIcon = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => executeAiOperation("tone", t.id)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 dark:hover:bg-purple-500/10 dark:hover:border-purple-500/40 dark:hover:text-purple-300 transition-colors cursor-pointer"
+                  >
+                    <ToneIcon className="w-3 h-3 shrink-0" />
+                    <span>{t.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
 
       {/* VIEW 2: RESULT & REVIEW */}
       {activeView === "result" && (
-        <div className="p-4 space-y-3.5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3.5">
           {/* Operation Pill and Back action */}
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/30 capitalize">
                 <ActiveIcon className="w-3 h-3" />
                 <span>
                   {currentOp === "tone" ? `Tone: ${currentTone}` : activeOpObj.label}
@@ -369,7 +346,7 @@ export default function AiWritingAssistant({
 
             <button
               onClick={() => setActiveView("menu")}
-              className="text-[11px] text-slate-500 hover:text-indigo-600 flex items-center gap-1 font-medium transition-colors cursor-pointer"
+              className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 flex items-center gap-1 font-medium transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3 h-3" />
               <span>Other actions</span>
@@ -378,25 +355,26 @@ export default function AiWritingAssistant({
 
           {/* Original Text Snippet */}
           <div>
-            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-              Original:
+            <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+              Original
             </div>
-            <div className="text-xs text-slate-600 bg-slate-50/80 border border-slate-200/70 rounded-xl p-2.5 max-h-24 overflow-y-auto leading-relaxed select-text italic">
-              "{selectedText}"
+            <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 border-l-2 border-slate-300 dark:border-slate-600 rounded-r-lg px-3 py-2 max-h-24 overflow-y-auto leading-relaxed select-text">
+              {selectedText}
             </div>
           </div>
 
           {/* AI Suggestion Body */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <span>AI Suggestion:</span>
+              <div className="text-[10px] font-semibold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1">
+                <Sparkles className="w-3 h-3" />
+                <span>Suggestion</span>
               </div>
 
               {suggestion && (
                 <button
                   onClick={handleCopySuggestion}
-                  className="text-[11px] text-slate-400 hover:text-slate-700 flex items-center gap-1 transition-colors cursor-pointer"
+                  className="text-[11px] text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center gap-1 transition-colors cursor-pointer"
                   title="Copy suggestion to clipboard"
                 >
                   {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
@@ -406,13 +384,13 @@ export default function AiWritingAssistant({
             </div>
 
             {loading ? (
-              <div className="min-h-[110px] bg-indigo-50/30 border border-indigo-100 rounded-xl p-4 flex flex-col items-center justify-center space-y-2">
+              <div className="min-h-[110px] bg-indigo-50/40 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/20 rounded-lg p-4 flex flex-col items-center justify-center space-y-2">
                 <div className="relative flex items-center justify-center">
                   <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
                   <Sparkles className="w-3 h-3 text-amber-500 absolute -top-1 -right-1" />
                 </div>
-                <p className="text-xs font-medium text-indigo-950 animate-pulse">
-                  AI is crafting improvement...
+                <p className="text-xs font-medium text-indigo-900 dark:text-indigo-200 animate-pulse">
+                  Generating suggestion...
                 </p>
                 <button
                   type="button"
@@ -423,19 +401,19 @@ export default function AiWritingAssistant({
                 </button>
               </div>
             ) : error ? (
-              <div className="min-h-[100px] bg-rose-50/80 border border-rose-200 rounded-xl p-3.5 flex flex-col justify-between">
-                <div className="flex items-start space-x-2 text-rose-800 text-xs leading-relaxed">
+              <div className="min-h-[100px] bg-rose-50/80 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg p-3.5 flex flex-col justify-between">
+                <div className="flex items-start space-x-2 text-rose-800 dark:text-rose-200 text-xs leading-relaxed">
                   <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-semibold block mb-0.5">Could not generate text</span>
-                    <span className="text-rose-700 text-[11px]">{error}</span>
+                    <span className="text-rose-700 dark:text-rose-300 text-[11px]">{error}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end space-x-2 mt-3 pt-2 border-t border-rose-100">
+                <div className="flex items-center justify-end space-x-2 mt-3 pt-2 border-t border-rose-100 dark:border-rose-500/20">
                   <button
                     onClick={() => setActiveView("menu")}
-                    className="px-2.5 py-1 text-xs text-rose-700 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                    className="px-2.5 py-1 text-xs text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
                   >
                     Back to menu
                   </button>
@@ -449,7 +427,7 @@ export default function AiWritingAssistant({
                 </div>
               </div>
             ) : (
-              <div className="bg-emerald-50/20 border border-emerald-500/20 rounded-xl p-3 text-xs text-slate-800 leading-relaxed max-h-48 overflow-y-auto font-normal shadow-2xs select-text">
+              <div className="bg-indigo-50/40 dark:bg-indigo-500/5 border border-indigo-200 dark:border-indigo-500/30 rounded-lg px-3 py-2.5 text-[13px] text-slate-800 dark:text-slate-100 leading-relaxed whitespace-pre-wrap select-text">
                 {suggestion}
               </div>
             )}
@@ -457,30 +435,30 @@ export default function AiWritingAssistant({
 
           {/* Action Buttons: Accept / Reject / Regenerate */}
           {!loading && !error && suggestion && (
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
+            <div className="sticky -bottom-4 -mx-4 -mb-4 px-4 py-3 bg-white dark:bg-slate-900 flex items-center justify-between border-t border-slate-200 dark:border-slate-800 gap-2">
               <button
                 onClick={() => executeAiOperation(currentOp, currentTone)}
-                className="px-3 py-2 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition-colors flex items-center gap-1.5 border border-slate-200/80 cursor-pointer"
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
                 title="Regenerate this suggestion"
               >
-                <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                <RefreshCw className="w-3.5 h-3.5" />
                 <span>Regenerate</span>
               </button>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={onClose}
-                  className="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
-                  Reject
+                  Discard
                 </button>
 
                 <button
                   onClick={handleAcceptSuggestion}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-md shadow-blue-600/20 flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>Accept</span>
+                  <span>Replace</span>
                 </button>
               </div>
             </div>
