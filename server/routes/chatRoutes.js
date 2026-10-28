@@ -34,23 +34,18 @@ router.post("/document-chat", async (req, res) => {
     const safeConvoId = typeof conversationId === "string" ? conversationId.slice(0, 128) : `chat-${safeDocId}`;
     const safeQuestion = question.trim();
 
-    // ── Ensure document is indexed ────────────────────────────────────
-    const stats = await ragService.getIndexStats(safeDocId);
-
-    if (stats.chunkCount === 0) {
-      // Try to index from live Yjs document
-      const ydoc = docs.get(safeDocId);
-      if (ydoc) {
-        const text = versionService.extractDocText(ydoc);
-        if (text && text.trim().length > 5) {
-          await ragService.indexDocument(safeDocId, text);
-        }
-      } else {
-        return res.status(404).json({
-          success: false,
-          error: "Document not found or has no content. Start typing in the editor first.",
-        });
+    // ── Sync index with live document (unchanged chunks are skipped by hash) ──
+    const ydoc = docs.get(safeDocId);
+    if (ydoc) {
+      const text = versionService.extractDocText(ydoc);
+      if (text && text.trim().length > 5) {
+        await ragService.indexDocument(safeDocId, text);
       }
+    } else if ((await ragService.getIndexStats(safeDocId)).chunkCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Document not found or has no content. Start typing in the editor first.",
+      });
     }
 
     // ── Retrieve relevant chunks ──────────────────────────────────────
