@@ -3,6 +3,8 @@
  * Supports Google Gemini, OpenAI, and local demo mode.
  */
 
+const { generateGeminiContent } = require("./geminiClient");
+
 const OPERATION_INSTRUCTIONS = {
   improve: "Improve the clarity, flow, and readability of the text while preserving its original meaning.",
   grammar: "Correct all grammar, spelling, punctuation, and capitalization errors in the text without changing its meaning.",
@@ -251,34 +253,19 @@ CRITICAL RULES:
       result = data.choices?.[0]?.message?.content || "";
     } else {
       // Default: Google Gemini
-      const model = process.env.LLM_MODEL || "gemini-3.1-flash-lite";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemPrompt }],
+      try {
+        const { text } = await generateGeminiContent(
+          apiKey,
+          {
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+            generationConfig: { temperature: 0.4, maxOutputTokens: 1500 },
           },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: userPrompt }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 1500,
-          },
-        }),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const status = response.status;
+          controller.signal
+        );
+        result = text;
+      } catch (geminiErr) {
+        const status = geminiErr.status;
         if (status === 400) {
           const err = new Error("Invalid request sent to AI provider.");
           err.status = 400;
@@ -291,15 +278,9 @@ CRITICAL RULES:
           const err = new Error("AI rate limit reached. Please wait a moment and try again.");
           err.status = 429;
           throw err;
-        } else {
-          const err = new Error("AI service provider is temporarily unavailable.");
-          err.status = 502;
-          throw err;
         }
+        throw geminiErr;
       }
-
-      const data = await response.json();
-      result = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     }
 
     clearTimeout(timeoutId);

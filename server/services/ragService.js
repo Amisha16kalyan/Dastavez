@@ -12,6 +12,7 @@
  */
 
 const db = require("../db/database");
+const { generateGeminiContent } = require("./geminiClient");
 
 // ──────────────────────────────────────────────────────────────────────────────
 // CHUNKING
@@ -412,9 +413,6 @@ async function generateAnswer(question, relevantChunks, chatHistory = []) {
       answer = data.choices?.[0]?.message?.content || "";
     } else {
       // Gemini
-      const model = process.env.LLM_MODEL || "gemini-3.1-flash-lite";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
       const contents = [
         ...recentHistory.map((m) => ({
           role: m.role === "assistant" ? "model" : "user",
@@ -423,20 +421,16 @@ async function generateAnswer(question, relevantChunks, chatHistory = []) {
         { role: "user", parts: [{ text: userMessage }] },
       ];
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const { text } = await generateGeminiContent(
+        apiKey,
+        {
           systemInstruction: { parts: [{ text: CHAT_SYSTEM_PROMPT }] },
           contents,
           generationConfig: { temperature: 0.3, maxOutputTokens: 2000 },
-        }),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) throw new Error(`Gemini returned ${response.status}`);
-      const data = await response.json();
-      answer = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        },
+        controller.signal
+      );
+      answer = text;
     }
 
     clearTimeout(timeoutId);
