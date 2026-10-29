@@ -210,8 +210,9 @@ export default function App() {
   const [restoring, setRestoring] = useState(false);
 
   // AI Writing Assistant State
-  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
-  const [chatPanelOpen, setChatPanelOpen] = useState(false);
+  const [activeAiPanel, setActiveAiPanel] = useState(null);
+  const aiAssistantOpen = activeAiPanel === "writing";
+  const chatPanelOpen = activeAiPanel === "chat";
   const [theme, setTheme] = useState(() => localStorage.getItem("dastavez_theme") || "dark");
 
   useEffect(() => {
@@ -630,7 +631,7 @@ export default function App() {
     const tr = state.tr.insertText(replacementText, safeFrom, safeTo);
     dispatch(tr);
 
-    setAiAssistantOpen(false);
+    setActiveAiPanel(null);
     setSelectionInfo((prev) => ({ ...prev, hasSelection: false }));
     view.focus();
 
@@ -661,7 +662,7 @@ export default function App() {
             coords,
             context,
           });
-          setAiAssistantOpen(true);
+          setActiveAiPanel("writing");
           return;
         }
       }
@@ -1100,7 +1101,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setChatPanelOpen((prev) => !prev)}
+              onClick={() => setActiveAiPanel((prev) => prev === "chat" ? null : "chat")}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs ${
                 chatPanelOpen
                   ? "bg-indigo-600 text-white shadow-indigo-600/25"
@@ -1240,7 +1241,7 @@ export default function App() {
         <ChatPanel
           documentId={currentDocId}
           isOpen={chatPanelOpen}
-          onClose={() => setChatPanelOpen(false)}
+          onClose={() => setActiveAiPanel(null)}
           editorView={viewRef.current}
         />
       </div>
@@ -1352,7 +1353,7 @@ export default function App() {
           type="button"
           onMouseDown={(e) => {
             e.preventDefault();
-            setAiAssistantOpen(true);
+            setActiveAiPanel("writing");
           }}
           style={{
             position: "fixed",
@@ -1371,7 +1372,7 @@ export default function App() {
       {/* AI Writing Assistant Popover / Dialog */}
       <AiWritingAssistant
         isOpen={aiAssistantOpen}
-        onClose={() => setAiAssistantOpen(false)}
+        onClose={() => setActiveAiPanel(null)}
         selectedText={selectionInfo.text}
         selectionRange={selectionInfo.range}
         context={selectionInfo.context}
